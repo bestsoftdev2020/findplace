@@ -1,0 +1,333 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>GoogleMap Example</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    <script src="https://js.api.here.com/v3/3.1/mapsjs-core.js" type="text/javascript" charset="utf-8"></script>
+    <script src="https://js.api.here.com/v3/3.1/mapsjs-service.js" type="text/javascript" charset="utf-8"></script>
+
+    <style type="text/css">
+        .inputSearh{
+            width: 100%;
+            font-size: 25px;
+            padding-left: 8px;
+            border-radius: 19px;
+        }
+
+        .inputSearh:focus {
+            outline-style: none;
+        }
+    </style>
+</head>
+<body>
+<script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?key={API_KEY}&sensor=false&libraries=places"></script>
+<script type="text/javascript">
+
+    var markers = {
+        "lat": '-33.84098643956351',
+        "lng": '151.2119460728884',
+    };
+
+    window.onload = function () {
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                showPosition, 
+                null, 
+                {
+                  enableHighAccuracy: true,
+                  timeout: 5000,
+                  maximumAge: 0
+                }
+            );
+        }
+
+        function showPosition(position) {
+            temp_latLng = new google.maps.LatLng(position.coords.latitude, position.coords.longitude); //Makes a latlng
+            gMap.panTo(temp_latLng);
+            marker.setPosition(temp_latLng);
+            var lat, lng, address;
+            geocoder.geocode({ 'latLng': marker.getPosition() }, function (results, status) {
+                if (status == google.maps.GeocoderStatus.OK) {
+                    lat = marker.getPosition().lat();
+                    lng = marker.getPosition().lng();
+                    
+                    document.getElementById("lat").innerHTML = lat;
+                    document.getElementById("lng").innerHTML = lng;
+
+                    fetch('https://reverse.geocoder.ls.hereapi.com/6.2/reversegeocode.json?apiKey={HERE_API_KEY}&mode=retrieveAddresses&prox='+lat+','+lng, {
+                        method: 'GET',
+                        headers: {
+                            'Accept' : '*/*',
+                            'Accept-Encoding' : 'gzip, deflate, br',
+                            'Accept-Language' : 'en-RU,en-US;q=0.9,en;q=0.8',
+                            'Connection' : 'keep-alive',
+                            'Host' : 'geocoder.ls.hereapi.com',
+                            'Origin' : '*',
+                            'Referer': '*',
+                            'Sec-Fetch-Mode': 'cors',
+                            'Sec-Fetch-Site': 'cross-site',
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36',
+                        },
+                    })
+                    .then(response => response.json())
+                    .then(json => {
+                        data = json.Response.View[0].Result[0].Location.Address ;
+                        document.getElementById("address").innerHTML = (data.Label ? data.Label : '');
+                        document.getElementById("country").innerHTML = (data.Country ? data.Country : '');
+                        document.getElementById("county").innerHTML = (data.County ? data.County : '');
+                        document.getElementById("state").innerHTML = (data.State ? data.State : '');
+                        document.getElementById("city").innerHTML = (data.City ? data.City : '');
+                        document.getElementById("zipcode").innerHTML = (data.PostalCode ? data.PostalCode : '');
+                    })
+                    .catch((error) => {
+                        console.log(error);
+                    });
+                }
+            });
+        }
+
+        var mapOptions = {
+            center: new google.maps.LatLng(markers.lat, markers.lng),
+            zoom: 10,
+            mapTypeId: google.maps.MapTypeId.ROADMAP,
+        };
+        var infoWindow = new google.maps.InfoWindow();
+        var latlngbounds = new google.maps.LatLngBounds();
+        var geocoder = geocoder = new google.maps.Geocoder();
+        var gMap = new google.maps.Map(document.getElementById("dvMap"), mapOptions);
+
+        var data = markers
+        var myLatlng = new google.maps.LatLng(data.lat, data.lng);
+        var marker = new google.maps.Marker({
+            position: myLatlng,
+            map: gMap,
+            draggable: true,
+            animation: google.maps.Animation.DROP
+        });
+
+        autocomplete = new google.maps.places.Autocomplete(
+            /** @type {!HTMLInputElement} */ (
+            document.getElementById('searchTextField')), {
+        });
+        places = new google.maps.places.PlacesService(gMap);
+
+        autocomplete.addListener('place_changed', onPlaceChanged) ;
+        
+        function onPlaceChanged(){
+            var place = autocomplete.getPlace();
+            if (place.geometry) {
+                document.getElementById('searchTextField').value = '';
+                gMap.panTo(place.geometry.location);
+                startLocation = place.geometry.location;
+                marker.setPosition(new google.maps.LatLng(startLocation.lat(), startLocation.lng()));
+                var lat, lng, address;
+                geocoder.geocode({ 'latLng': marker.getPosition() }, function (results, status) {
+                    if (status == google.maps.GeocoderStatus.OK) {
+                        lat = marker.getPosition().lat();
+                        lng = marker.getPosition().lng();
+                        
+                        document.getElementById("lat").innerHTML = lat;
+                        document.getElementById("lng").innerHTML = lng;
+
+                        fetch('https://reverse.geocoder.ls.hereapi.com/6.2/reversegeocode.json?apiKey={HERE_API_KEY}&mode=retrieveAddresses&prox='+lat+','+lng, {
+                            method: 'GET',
+                            headers: {
+                                'Accept' : '*/*',
+                                'Accept-Encoding' : 'gzip, deflate, br',
+                                'Accept-Language' : 'en-RU,en-US;q=0.9,en;q=0.8',
+                                'Connection' : 'keep-alive',
+                                'Host' : 'geocoder.ls.hereapi.com',
+                                'Origin' : '*',
+                                'Referer': '*',
+                                'Sec-Fetch-Mode': 'cors',
+                                'Sec-Fetch-Site': 'cross-site',
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36',
+                            },
+                        })
+                        .then(response => response.json())
+                        .then(json => {
+                            data = json.Response.View[0].Result[0].Location.Address ;
+                            document.getElementById("address").innerHTML = (data.Label ? data.Label : '');
+                            document.getElementById("country").innerHTML = (data.Country ? data.Country : '');
+                            document.getElementById("county").innerHTML = (data.County ? data.County : '');
+                            document.getElementById("state").innerHTML = (data.State ? data.State : '');
+                            document.getElementById("city").innerHTML = (data.City ? data.City : '');
+                            document.getElementById("zipcode").innerHTML = (data.PostalCode ? data.PostalCode : '');
+                        })
+                        .catch((error) => {
+                            console.log(error);
+                        });
+                    }
+                });
+            } else {
+                document.getElementById('searchTextField').placeholder = 'Enter a city';
+                document.getElementById('searchTextField').value = '';
+            }
+        };
+
+        (function (marker, data) {
+            google.maps.event.addListener(gMap, 'click', function(event) {
+                startLocation = event.latLng;
+                marker.setPosition(new google.maps.LatLng(startLocation.lat(), startLocation.lng()));
+                var lat, lng, address;
+                geocoder.geocode({ 'latLng': marker.getPosition() }, function (results, status) {
+                    if (status == google.maps.GeocoderStatus.OK) {
+                        lat = marker.getPosition().lat();
+                        lng = marker.getPosition().lng();
+                        
+                        document.getElementById("lat").innerHTML = lat;
+                        document.getElementById("lng").innerHTML = lng;
+
+                        fetch('https://reverse.geocoder.ls.hereapi.com/6.2/reversegeocode.json?apiKey={HERE_API_KEY}&mode=retrieveAddresses&prox='+lat+','+lng, {
+                            method: 'GET',
+                            headers: {
+                                'Accept' : '*/*',
+                                'Accept-Encoding' : 'gzip, deflate, br',
+                                'Accept-Language' : 'en-RU,en-US;q=0.9,en;q=0.8',
+                                'Connection' : 'keep-alive',
+                                'Host' : 'geocoder.ls.hereapi.com',
+                                'Origin' : '*',
+                                'Referer': '*',
+                                'Sec-Fetch-Mode': 'cors',
+                                'Sec-Fetch-Site': 'cross-site',
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36',
+                            },
+                        })
+                        .then(response => response.json())
+                        .then(json => {
+                            data = json.Response.View[0].Result[0].Location.Address ;
+                            document.getElementById("address").innerHTML = (data.Label ? data.Label : '');
+                            document.getElementById("country").innerHTML = (data.Country ? data.Country : '');
+                            document.getElementById("county").innerHTML = (data.County ? data.County : '');
+                            document.getElementById("state").innerHTML = (data.State ? data.State : '');
+                            document.getElementById("city").innerHTML = (data.City ? data.City : '');
+                            document.getElementById("zipcode").innerHTML = (data.PostalCode ? data.PostalCode : '');
+                        })
+                        .catch((error) => {
+                            console.log(error);
+                        });
+                    }
+                });
+            });
+
+            google.maps.event.addListener(marker, "dragend", function (e) {
+                var lat, lng, address;
+                geocoder.geocode({ 'latLng': marker.getPosition() }, function (results, status) {
+                    if (status == google.maps.GeocoderStatus.OK) {
+                        lat = marker.getPosition().lat();
+                        lng = marker.getPosition().lng();
+                        
+                        document.getElementById("lat").innerHTML = lat;
+                        document.getElementById("lng").innerHTML = lng;
+
+                        fetch('https://reverse.geocoder.ls.hereapi.com/6.2/reversegeocode.json?apiKey={HERE_API_KEY}&mode=retrieveAddresses&prox='+lat+','+lng, {
+                            method: 'GET',
+                            headers: {
+                                'Accept' : '*/*',
+                                'Accept-Encoding' : 'gzip, deflate, br',
+                                'Accept-Language' : 'en-RU,en-US;q=0.9,en;q=0.8',
+                                'Connection' : 'keep-alive',
+                                'Host' : 'geocoder.ls.hereapi.com',
+                                'Origin' : '*',
+                                'Referer': '*',
+                                'Sec-Fetch-Mode': 'cors',
+                                'Sec-Fetch-Site': 'cross-site',
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36',
+                            },
+                        })
+                        .then(response => response.json())
+                        .then(json => {
+                            data = json.Response.View[0].Result[0].Location.Address ;
+                            document.getElementById("address").innerHTML = (data.Label ? data.Label : '');
+                            document.getElementById("country").innerHTML = (data.Country ? data.Country : '');
+                            document.getElementById("county").innerHTML = (data.County ? data.County : '');
+                            document.getElementById("state").innerHTML = (data.State ? data.State : '');
+                            document.getElementById("city").innerHTML = (data.City ? data.City : '');
+                            document.getElementById("zipcode").innerHTML = (data.PostalCode ? data.PostalCode : '');
+                        })
+                        .catch((error) => {
+                            console.log(error);
+                        });
+                    }
+                });
+            });
+        })(marker, data);
+    }
+</script>
+
+<div class="container border border-info mt-5 mb-4">
+    <div class="row mt-3 justify-content-sm-center">
+        <div class="col-sm-10">
+          <input id="searchTextField" placeholder="Enter a address" class="inputSearh">
+        </div>
+    </div>
+    <div class="row mt-4">
+        <div class="col-sm-2">
+            <h4>Address</h4>
+        </div>
+        <div class="col-sm-4">
+            <h4 class="font-weight-normal" id="address"></h4>
+        </div>
+        <div class="col-sm-2">
+            <h4>County</h4>
+        </div>
+        <div class="col-sm-4">
+            <h4 class="font-weight-normal" id="county"></h4>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-sm-2">
+            <h4>City</h4>
+        </div>
+        <div class="col-sm-4">
+            <h4 class="font-weight-normal" id="city"></h4>
+        </div>
+        <div class="col-sm-2">
+            <h4>Country</h4>
+        </div>
+        <div class="col-sm-4">
+            <h4 class="font-weight-normal" id="country"></h4>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-sm-2">
+            <h4>State</h4>
+        </div>
+        <div class="col-sm-4">
+            <h4 class="font-weight-normal" id="state"></h4>
+        </div>
+        <div class="col-sm-2">
+            <h4>Latitude</h4>
+        </div>
+        <div class="col-sm-4">
+            <h4 class="font-weight-normal" id="lat"></h4>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-sm-2">
+            <h4>Zipcode</h4>
+        </div>
+        <div class="col-sm-4">
+            <h4 class="font-weight-normal" id="zipcode"></h4>
+        </div>
+        <div class="col-sm-2">
+            <h4>Longitude</h4>
+        </div>
+        <div class="col-sm-4">
+            <h4 class="font-weight-normal" id="lng"></h4>
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div id="dvMap" style="width: 100%; height: 600px"> </div>
+    </div>
+</div>
+</body>
+</html>
